@@ -1,336 +1,243 @@
-import { useEffect, useState } from "react";
+
+import { useCallback, useEffect, useState } from "react";
 import api from "../../services/api";
 import Loading from "../../components/Loading";
 import "./StudentMatching.css";
 
 function StudentMatching() {
-
     const [matches, setMatches] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
-    useEffect(() => {
-        loadMatches();
-    }, []);
-
-
-    const loadMatches = async () => {
-
+    const loadMatches = useCallback(async () => {
         try {
-
             setLoading(true);
             setError("");
 
-            const response =
-                await api.get("/student/matching");
+            const response = await api.get("/student/matching");
 
             setMatches(
-                Array.isArray(response.data)
-                    ? response.data
-                    : []
+                Array.isArray(response.data) ? response.data : []
             );
-
         } catch (err) {
-
-            console.error(err);
+            console.error("Unable to load opportunity matches:", err);
 
             setError(
                 err.response?.data?.message ||
                 "Unable to load opportunity matches."
             );
-
         } finally {
-
             setLoading(false);
         }
-    };
+    }, []);
 
+    useEffect(() => {
+        loadMatches();
+    }, [loadMatches]);
 
     const getMatchClass = (percentage) => {
-
-        if (percentage >= 80) {
-            return "excellent";
-        }
-
-        if (percentage >= 60) {
-            return "good";
-        }
-
-        if (percentage >= 40) {
-            return "medium";
-        }
-
+        if (percentage >= 80) return "excellent";
+        if (percentage >= 60) return "good";
+        if (percentage >= 40) return "medium";
         return "low";
     };
 
+    const getSkillArray = (skills) => {
+        return Array.isArray(skills)
+            ? skills.filter(
+                (skill) =>
+                    typeof skill === "string" &&
+                    skill.trim().length > 0
+            )
+            : [];
+    };
 
     return (
         <div className="student-matching-page">
-
             <div className="matching-header">
-
                 <div>
-
                     <span className="matching-eyebrow">
                         NEXLY INTELLIGENCE
                     </span>
 
-                    <h1>
-                        Match & Skill Gap
-                    </h1>
+                    <h1>Match &amp; Skill Gap</h1>
 
                     <p>
-                        Discover how well your skills match
-                        available opportunities and identify
-                        the skills you can improve.
+                        Discover how well your skills match available
+                        opportunities and identify the skills you can improve.
                     </p>
-
                 </div>
 
-                <div className="matching-header-icon">
-                    ✦
-                </div>
-
+                <div className="matching-header-icon">✦</div>
             </div>
 
-
             {error && (
-
                 <div className="matching-error">
-
                     <span>⚠</span>
-
                     <span>{error}</span>
-
-                    <button onClick={loadMatches}>
-                        Try Again
-                    </button>
-
+                    <button onClick={loadMatches}>Try Again</button>
                 </div>
-
             )}
 
-
             {loading ? (
-
                 <div className="matching-loading">
                     <Loading />
                 </div>
-
             ) : matches.length === 0 ? (
-
                 <div className="matching-empty">
-
-                    <div className="matching-empty-icon">
-                        ✦
-                    </div>
-
-                    <h2>
-                        No matches available yet
-                    </h2>
-
+                    <div className="matching-empty-icon">✦</div>
+                    <h2>No matches available yet</h2>
                     <p>
-                        Add your skills and wait for
-                        opportunities to be published.
-                        Nexly will calculate your match
-                        automatically.
+                        Add skills to your profile and check again when
+                        opportunities are available. Nexly will calculate
+                        your match automatically.
                     </p>
-
                 </div>
-
             ) : (
-
                 <div className="matching-list">
+                    {matches.map((match, index) => {
+                        const rawPercentage = Number(
+                            match.matchPercentage
+                        );
 
-                    {matches.map((match) => {
+                        const percentage = Number.isFinite(rawPercentage)
+                            ? Math.max(0, Math.min(100, rawPercentage))
+                            : 0;
 
-                        const percentage =
-                            Number(
-                                match.matchPercentage || 0
-                            );
+                        const matchClass = getMatchClass(percentage);
+                        const matchingSkills = getSkillArray(
+                            match.matchingSkills
+                        );
+                        const missingSkills = getSkillArray(
+                            match.missingSkills
+                        );
 
-                        const matchClass =
-                            getMatchClass(
-                                percentage
-                            );
+                        /*
+                         * Empty matching and missing lists do not prove
+                         * that the student has all required skills.
+                         * They may indicate that skill data is unavailable.
+                         */
+                        const hasSkillData =
+                            matchingSkills.length > 0 ||
+                            missingSkills.length > 0;
 
                         return (
-
                             <article
                                 key={
-                                    match.opportunityId
+                                    match.opportunityId ??
+                                    match.id ??
+                                    index
                                 }
                                 className="matching-card"
                             >
-
                                 <div className="matching-card-main">
-
                                     <div className="matching-opportunity-icon">
                                         N
                                     </div>
 
                                     <div className="matching-opportunity-info">
-
                                         <h2>
-                                            {
-                                                match.opportunityTitle ||
-                                                "Opportunity"
-                                            }
+                                            {match.opportunityTitle ||
+                                                "Opportunity"}
                                         </h2>
 
                                         <p>
                                             Opportunity #
-                                            {
-                                                match.opportunityId
-                                            }
+                                            {match.opportunityId ?? "—"}
                                         </p>
-
                                     </div>
-
                                 </div>
 
-
                                 <div className="matching-score">
-
                                     <div
                                         className={`match-circle ${matchClass}`}
                                     >
-                                        <strong>
-                                            {
-                                                percentage
-                                            }%
-                                        </strong>
-
-                                        <span>
-                                            Match
-                                        </span>
+                                        <strong>{percentage}%</strong>
+                                        <span>Match</span>
                                     </div>
-
                                 </div>
 
-
                                 <div className="matching-progress">
-
                                     <div className="progress-header">
-
-                                        <span>
-                                            Skill compatibility
-                                        </span>
-
-                                        <strong>
-                                            {
-                                                percentage
-                                            }%
-                                        </strong>
-
+                                        <span>Skill compatibility</span>
+                                        <strong>{percentage}%</strong>
                                     </div>
 
-                                    <div className="progress-track">
-
+                                    <div
+                                        className="progress-track"
+                                        role="progressbar"
+                                        aria-label="Skill compatibility"
+                                        aria-valuemin={0}
+                                        aria-valuemax={100}
+                                        aria-valuenow={percentage}
+                                    >
                                         <div
                                             className={`progress-fill ${matchClass}`}
                                             style={{
-                                                width:
-                                                    `${Math.min(
-                                                        percentage,
-                                                        100
-                                                    )}%`
+                                                width: `${percentage}%`,
                                             }}
                                         />
-
                                     </div>
-
                                 </div>
 
-
                                 <div className="matching-skills-section">
-
                                     <div className="skills-column">
+                                        <h3>✓ Matching Skills</h3>
 
-                                        <h3>
-                                            ✓ Matching Skills
-                                        </h3>
-
-                                        {match.matchingSkills &&
-                                        match.matchingSkills.length > 0 ? (
-
+                                        {matchingSkills.length > 0 ? (
                                             <div className="skill-list">
-
-                                                {match.matchingSkills.map(
-                                                    (skill, index) => (
-
+                                                {matchingSkills.map(
+                                                    (skill, skillIndex) => (
                                                         <span
-                                                            key={index}
+                                                            key={`${skill}-${skillIndex}`}
                                                             className="skill-chip matched"
                                                         >
                                                             ✓ {skill}
                                                         </span>
-
                                                     )
                                                 )}
-
                                             </div>
-
                                         ) : (
-
                                             <p className="no-skills">
                                                 No matching skills yet.
                                             </p>
-
                                         )}
-
                                     </div>
 
-
                                     <div className="skills-column">
+                                        <h3>+ Skills to Improve</h3>
 
-                                        <h3>
-                                            + Skills to Improve
-                                        </h3>
-
-                                        {match.missingSkills &&
-                                        match.missingSkills.length > 0 ? (
-
+                                        {missingSkills.length > 0 ? (
                                             <div className="skill-list">
-
-                                                {match.missingSkills.map(
-                                                    (skill, index) => (
-
+                                                {missingSkills.map(
+                                                    (skill, skillIndex) => (
                                                         <span
-                                                            key={index}
+                                                            key={`${skill}-${skillIndex}`}
                                                             className="skill-chip missing"
                                                         >
                                                             + {skill}
                                                         </span>
-
                                                     )
                                                 )}
-
                                             </div>
-
-                                        ) : (
-
+                                        ) : hasSkillData ? (
                                             <p className="no-skills">
-                                                You have all required
-                                                skills.
+                                                You have all required skills.
                                             </p>
-
+                                        ) : (
+                                            <p className="no-skills">
+                                                Skill-gap data is unavailable.
+                                                Check your profile skills and
+                                                try again.
+                                            </p>
                                         )}
-
                                     </div>
-
                                 </div>
-
                             </article>
-
                         );
-
                     })}
-
                 </div>
-
             )}
-
         </div>
     );
 }
